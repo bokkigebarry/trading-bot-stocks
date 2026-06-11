@@ -3,6 +3,9 @@
 A stock trading bot that trades **fake money** on real market prices and
 learns from its own trade journal. Built together with Claude.
 
+**📊 Live dashboard:** https://bokkigebarry.github.io/trading-bot-stocks/
+(refreshed automatically after every trading day)
+
 ## How it works
 
 - **Strategy:** mean-reversion dip buying — buy extreme 2-day selloffs
