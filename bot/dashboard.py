@@ -51,6 +51,15 @@ PAGE = """<!DOCTYPE html>
   .paper { background: #1c2f45; color: var(--accent); }
   .backtest { background: #2d2436; color: #c297e8; }
   canvas { max-height: 300px; }
+  .pager { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .pager button { background: var(--card); color: var(--text);
+                  border: 1px solid var(--border); border-radius: 6px;
+                  padding: 4px 10px; cursor: pointer; font-size: 13px; }
+  .pager button:hover:not(:disabled) { border-color: var(--accent); }
+  .pager button.cur { background: var(--accent); color: #0d1117;
+                      font-weight: 600; border-color: var(--accent); }
+  .pager button:disabled { opacity: .4; cursor: default; }
+  .pager .dots { color: var(--muted); padding: 4px 2px; }
 </style>
 </head>
 <body>
@@ -78,8 +87,9 @@ PAGE = """<!DOCTYPE html>
 <h2>Open positions</h2>
 __POSITIONS__
 
-<h2>Recent trades</h2>
-__TRADES__
+<h2>All trades (<span id="tradeCount">0</span>)</h2>
+<div id="tradesTable"><div class="card">No closed trades yet.</div></div>
+<div class="pager" id="pager"></div>
 
 <div class="grid2">
   <div>
@@ -122,6 +132,45 @@ new Chart(document.getElementById("learnChart"), {
     ticks: { callback: v => v + "%" } } },
     plugins: { legend: { display: false } } }
 });
+
+// --- all trades, paginated 25 per page ---
+const PER_PAGE = 25;
+let page = 1;
+const money = v => (v >= 0 ? "+€" : "-€") +
+  Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function renderTrades() {
+  const total = DATA.trades.length;
+  document.getElementById("tradeCount").textContent = total;
+  if (!total) return;
+  const pages = Math.ceil(total / PER_PAGE);
+  page = Math.min(Math.max(1, page), pages);
+
+  const rows = DATA.trades.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(t =>
+    `<tr><td>${t.date}</td><td><b>${t.ticker}</b></td>` +
+    `<td><span class="badge long">LONG</span></td>` +
+    `<td><span class="badge ${t.mode}">${t.mode}</span></td>` +
+    `<td>${t.entry.toFixed(2)}</td><td>${t.exit.toFixed(2)}</td>` +
+    `<td class="${t.pnl >= 0 ? "pos" : "neg"}">${money(t.pnl)}</td>` +
+    `<td>${t.reason}</td></tr>`).join("");
+  document.getElementById("tradesTable").innerHTML =
+    "<table><tr><th>Closed</th><th>Stock</th><th>Side</th><th>Mode</th>" +
+    "<th>Entry</th><th>Exit</th><th>P/L</th><th>Exit reason</th></tr>" + rows + "</table>";
+
+  // page buttons: always 1 and last, current +/- 2, dots in between
+  const nums = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - page) <= 2) nums.push(p);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+  document.getElementById("pager").innerHTML =
+    `<button ${page === 1 ? "disabled" : ""} onclick="go(${page - 1})">‹ Prev</button>` +
+    nums.map(p => p === "…" ? `<span class="dots">…</span>` :
+      `<button class="${p === page ? "cur" : ""}" onclick="go(${p})">${p}</button>`).join("") +
+    `<button ${page === pages ? "disabled" : ""} onclick="go(${page + 1})">Next ›</button>`;
+}
+function go(p) { page = p; renderTrades(); }
+renderTrades();
 </script>
 </body>
 </html>
@@ -174,22 +223,13 @@ def render_dashboard(cfg: Config) -> str:
     else:
         positions_html = "<div class='card'>No open positions.</div>"
 
-    # recent trades table (newest first, paper + backtest)
-    recent = sorted(all_trades, key=lambda t: str(t["exit_date"]))[-30:][::-1]
-    if recent:
-        rows = ""
-        for t in recent:
-            rows += (f"<tr><td>{t['exit_date']}</td><td><b>{t['ticker']}</b></td>"
-                     f"<td><span class='badge long'>LONG</span></td>"
-                     f"<td><span class='badge {t['mode']}'>{t['mode']}</span></td>"
-                     f"<td>{t['entry_price']:.2f}</td><td>{t['exit_price']:.2f}</td>"
-                     f"<td class='{_cls(t['pnl'])}'>{_money(t['pnl'])}</td>"
-                     f"<td>{t['exit_reason']}</td></tr>")
-        trades_html = ("<table><tr><th>Closed</th><th>Stock</th><th>Side</th>"
-                       "<th>Mode</th><th>Entry</th><th>Exit</th><th>P/L</th>"
-                       "<th>Exit reason</th></tr>" f"{rows}</table>")
-    else:
-        trades_html = "<div class='card'>No closed trades yet.</div>"
+    # all trades, newest first — paginated client-side, 25 per page
+    trades_data = [
+        {"date": str(t["exit_date"]), "ticker": t["ticker"], "mode": t["mode"],
+         "entry": round(t["entry_price"], 2), "exit": round(t["exit_price"], 2),
+         "pnl": round(t["pnl"], 2), "reason": t["exit_reason"]}
+        for t in sorted(all_trades, key=lambda t: str(t["exit_date"]), reverse=True)
+    ]
 
     # charts data
     eq_labels = [h["date"] for h in history] or [datetime.now().strftime("%Y-%m-%d")]
@@ -212,6 +252,7 @@ def render_dashboard(cfg: Config) -> str:
         "per_ticker": {"labels": [k for k, _ in ranked],
                        "values": [round(v, 2) for _, v in ranked]},
         "learning": {"labels": learn_labels, "values": learn_values},
+        "trades": trades_data,
     }
 
     html = (PAGE
@@ -225,7 +266,6 @@ def render_dashboard(cfg: Config) -> str:
             .replace("__WINRATE__", winrate)
             .replace("__NTRADES__", str(len(paper_trades)))
             .replace("__POSITIONS__", positions_html)
-            .replace("__TRADES__", trades_html)
             .replace("__DATA__", json.dumps(data)))
 
     out = "bot_data/dashboard.html"
