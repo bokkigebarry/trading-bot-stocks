@@ -11,9 +11,10 @@ class Position:
     entry_date: str
     entry_price: float       # fill price incl. slippage
     shares: float
-    stop_price: float        # disaster stop, ATR-based
+    stop_price: float        # disaster stop, ATR-based (above entry for shorts)
     confidence: float
     features: dict
+    side: str = "long"       # "long" or "short"
     days_held: int = 0
 
 
@@ -30,7 +31,10 @@ class Portfolio:
     def equity(self, prices: dict[str, float]) -> float:
         total = self.cash
         for t, pos in self.positions.items():
-            total += pos.shares * prices.get(t, pos.entry_price)
+            value = pos.shares * prices.get(t, pos.entry_price)
+            # a short is a liability: we owe the shares (sale proceeds
+            # were already added to cash at entry)
+            total += value if pos.side == "long" else -value
         return total
 
     def can_open(self) -> bool:
@@ -45,47 +49,67 @@ class Portfolio:
         return float(int(max_value / price))  # whole shares, like a real broker
 
     def open_position(self, ticker, setup, date, price, confidence, features,
-                      prices: dict[str, float]) -> Position | None:
+                      prices: dict[str, float], side: str = "long") -> Position | None:
         if ticker in self.positions or not self.can_open():
             return None
-        fill = price * (1 + self.cfg.slippage_pct)
         # disaster stop scaled to the stock's own volatility (ATR)
         atr_pct = float(features.get("atr_pct") or 0.02)
-        stop = fill * (1 - self.cfg.atr_stop_mult * atr_pct)
+        if side == "long":
+            fill = price * (1 + self.cfg.slippage_pct)
+            stop = fill * (1 - self.cfg.atr_stop_mult * atr_pct)
+        else:  # short: sell first, stop sits above entry
+            fill = price * (1 - self.cfg.slippage_pct)
+            stop = fill * (1 + self.cfg.atr_stop_mult * atr_pct)
         shares = self.position_size(fill, prices)
         if shares < 1:
             return None
-        cost = shares * fill + self.cfg.commission_per_order
-        if cost > self.cash:
-            return None
-        self.cash -= cost
+        if side == "long":
+            cost = shares * fill + self.cfg.commission_per_order
+            if cost > self.cash:
+                return None
+            self.cash -= cost
+        else:
+            # short sale: proceeds come in now, shares are owed
+            self.cash += shares * fill - self.cfg.commission_per_order
         pos = Position(ticker, setup, str(date), fill, shares, stop,
-                       confidence, features)
+                       confidence, features, side)
         self.positions[ticker] = pos
         return pos
 
     def close_position(self, ticker: str, date, price: float,
                        reason: str) -> tuple[Position, float, float]:
         pos = self.positions.pop(ticker)
-        fill = price * (1 - self.cfg.slippage_pct)
-        proceeds = pos.shares * fill - self.cfg.commission_per_order
         cost_basis = pos.shares * pos.entry_price + self.cfg.commission_per_order
-        pnl = proceeds - cost_basis
+        if pos.side == "long":
+            fill = price * (1 - self.cfg.slippage_pct)
+            self.cash += pos.shares * fill - self.cfg.commission_per_order
+            pnl = pos.shares * (fill - pos.entry_price) - 2 * self.cfg.commission_per_order
+        else:
+            # buy the shares back; profit if they got cheaper
+            fill = price * (1 + self.cfg.slippage_pct)
+            self.cash -= pos.shares * fill + self.cfg.commission_per_order
+            pnl = pos.shares * (pos.entry_price - fill) - 2 * self.cfg.commission_per_order
         pnl_pct = pnl / cost_basis
-        self.cash += proceeds
         return pos, pnl, pnl_pct
 
     def check_exit(self, pos: Position, low: float, high: float,
                    close: float, sma5: float) -> tuple[float, str] | None:
         """Decide whether today's bar triggers an exit. Returns (price, reason)."""
-        # disaster stop on the close: intraday wicks below the stop are the
-        # noise we're trading on, not a reason to sell at the bottom
-        if close <= pos.stop_price:
-            return close, "stop_loss"
-        # mean reversion: the bounce happened once price closes back
-        # above its 5-day average — take the money and move on
-        if sma5 == sma5 and close > sma5:  # sma5==sma5 filters NaN
-            return close, "bounce_exit"
+        # disaster stop on the close: intraday wicks past the stop are the
+        # noise we're trading on, not a reason to exit at the extreme
+        if pos.side == "long":
+            if close <= pos.stop_price:
+                return close, "stop_loss"
+            # mean reversion: the bounce happened once price closes back
+            # above its 5-day average — take the money and move on
+            if sma5 == sma5 and close > sma5:  # sma5==sma5 filters NaN
+                return close, "bounce_exit"
+        else:
+            if close >= pos.stop_price:
+                return close, "stop_loss"
+            # short: the rip faded once price closes back under its 5-day
+            if sma5 == sma5 and close < sma5:
+                return close, "bounce_exit"
         if pos.days_held >= self.cfg.max_holding_days:
             return close, "time_exit"
         return None

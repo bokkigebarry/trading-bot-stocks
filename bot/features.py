@@ -10,7 +10,7 @@ import pandas as pd
 FEATURE_NAMES = [
     "rsi2", "rsi14", "sma5_dist", "sma20_dist", "sma50_dist", "sma200_dist",
     "macd_hist", "bb_pos", "atr_pct", "ret_5d", "ret_20d",
-    "vol_ratio", "trend_up", "ticker_winrate",
+    "vol_ratio", "trend_up", "ticker_winrate", "is_short",
 ]
 
 

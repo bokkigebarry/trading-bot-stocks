@@ -48,6 +48,7 @@ PAGE = """<!DOCTYPE html>
   tr + tr td { border-top: 1px solid var(--border); }
   .badge { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .long { background: #1a3526; color: var(--green); }
+  .short { background: #3d1d23; color: var(--red); }
   .paper { background: #1c2f45; color: var(--accent); }
   .backtest { background: #2d2436; color: #c297e8; }
   canvas { max-height: 300px; }
@@ -148,7 +149,7 @@ function renderTrades() {
 
   const rows = DATA.trades.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(t =>
     `<tr><td>${t.date}</td><td><b>${t.ticker}</b></td>` +
-    `<td><span class="badge long">LONG</span></td>` +
+    `<td><span class="badge ${t.side}">${t.side.toUpperCase()}</span></td>` +
     `<td><span class="badge ${t.mode}">${t.mode}</span></td>` +
     `<td>${t.entry.toFixed(2)}</td><td>${t.exit.toFixed(2)}</td>` +
     `<td class="${t.pnl >= 0 ? "pos" : "neg"}">${money(t.pnl)}</td>` +
@@ -195,10 +196,13 @@ def render_dashboard(cfg: Config) -> str:
     positions = journal.load_state("positions", [])
     prices = journal.load_state("last_prices", {})
 
+    def _sign(p):  # shorts profit when price falls
+        return -1 if p.get("side", "long") == "short" else 1
+
     unrealized = sum((prices.get(p["ticker"], p["entry_price"]) - p["entry_price"])
-                     * p["shares"] for p in positions)
+                     * p["shares"] * _sign(p) for p in positions)
     pos_value = sum(prices.get(p["ticker"], p["entry_price"]) * p["shares"]
-                    for p in positions)
+                    * _sign(p) for p in positions)
     equity = cash + pos_value
     realized = sum(t["pnl"] for t in paper_trades)
     wins = sum(1 for t in paper_trades if t["pnl"] > 0)
@@ -209,9 +213,10 @@ def render_dashboard(cfg: Config) -> str:
         rows = ""
         for p in positions:
             cur = prices.get(p["ticker"], p["entry_price"])
-            upnl = (cur - p["entry_price"]) * p["shares"]
+            upnl = (cur - p["entry_price"]) * p["shares"] * _sign(p)
+            side = p.get("side", "long")
             rows += (f"<tr><td><b>{p['ticker']}</b></td>"
-                     f"<td><span class='badge long'>LONG</span></td>"
+                     f"<td><span class='badge {side}'>{side.upper()}</span></td>"
                      f"<td>{p['shares']:.0f}</td><td>{p['entry_price']:.2f}</td>"
                      f"<td>{cur:.2f}</td><td class='{_cls(upnl)}'>{_money(upnl)}</td>"
                      f"<td>{p['entry_date']}</td><td>{p['days_held']}</td>"
@@ -226,6 +231,7 @@ def render_dashboard(cfg: Config) -> str:
     # all trades, newest first — paginated client-side, 25 per page
     trades_data = [
         {"date": str(t["exit_date"]), "ticker": t["ticker"], "mode": t["mode"],
+         "side": "short" if "rip" in t["setup"] else "long",
          "entry": round(t["entry_price"], 2), "exit": round(t["exit_price"], 2),
          "pnl": round(t["pnl"], 2), "reason": t["exit_reason"]}
         for t in sorted(all_trades, key=lambda t: str(t["exit_date"]), reverse=True)

@@ -70,33 +70,39 @@ def run_backtest(cfg: Config, data: dict[str, pd.DataFrame], journal: Journal,
             if not pd.isna(row["sma200"]):
                 total += 1
                 above += row["Close"] > row["sma200"]
-        breadth_ok = total > 0 and above / total >= cfg.min_market_breadth
+        breadth = above / total if total else 1.0
+        # strong market -> buy dips; weak market -> short rips
+        long_ok = breadth >= cfg.min_market_breadth
+        short_ok = cfg.allow_shorts and breadth <= 1 - cfg.min_market_breadth
 
         # --- look for new entries: rank candidates, take the most confident ---
         candidates = []
-        if breadth_ok:
-            tstats = journal.ticker_win_rates()
-            for ticker, df in frames.items():
-                if date not in df.index or ticker in portfolio.positions:
-                    continue
-                i = df.index.get_loc(date)
-                if i < 1:
-                    continue
-                row, prev = df.iloc[i], df.iloc[i - 1]
-                setup = entry_signal(row, prev)
-                if setup is None:
-                    continue
-                feats = feature_vector(row)
-                feats["ticker_winrate"] = ticker_winrate(tstats, ticker)
-                conf = brain.win_probability(feats)
-                if brain.model is not None and conf < cfg.confidence_threshold:
-                    skipped_by_brain += 1
-                    continue
-                candidates.append((conf, ticker, setup, float(row["Close"]), feats))
-        for conf, ticker, setup, price, feats in sorted(candidates,
-                                                        key=lambda c: -c[0]):
+        tstats = journal.ticker_win_rates()
+        for ticker, df in frames.items():
+            if date not in df.index or ticker in portfolio.positions:
+                continue
+            i = df.index.get_loc(date)
+            if i < 1:
+                continue
+            row, prev = df.iloc[i], df.iloc[i - 1]
+            sig = entry_signal(row, prev)
+            if sig is None:
+                continue
+            setup, side = sig
+            if (side == "long" and not long_ok) or (side == "short" and not short_ok):
+                continue
+            feats = feature_vector(row)
+            feats["ticker_winrate"] = ticker_winrate(tstats, ticker)
+            feats["is_short"] = 1.0 if side == "short" else 0.0
+            conf = brain.win_probability(feats)
+            if brain.model is not None and conf < cfg.confidence_threshold:
+                skipped_by_brain += 1
+                continue
+            candidates.append((conf, ticker, setup, side, float(row["Close"]), feats))
+        for conf, ticker, setup, side, price, feats in sorted(candidates,
+                                                              key=lambda c: -c[0]):
             portfolio.open_position(ticker, setup, date.date(), price,
-                                    conf, feats, prices)
+                                    conf, feats, prices, side)
 
         equity_curve.append((date, portfolio.equity(prices)))
 

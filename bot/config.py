@@ -45,10 +45,11 @@ class Config:
     retrain_every: int = 10                  # retrain after every N new closed trades
     confidence_threshold: float = 0.60       # only take trades the model rates >60% win chance
 
-    # Market regime: fraction of the universe that must be above its own
-    # 200-day average before we buy any dip. Below this, the whole market
-    # is falling and "dips" tend to keep dipping.
+    # Market regime: fraction of the universe above its own 200-day average.
+    # Strong breadth -> dips get bought (longs). Weak breadth -> the whole
+    # market is falling, so rips get shorted instead (shorts).
     min_market_breadth: float = 0.5
+    allow_shorts: bool = True                # set False to go long-only again
 
     # Data
     history_years: int = 6

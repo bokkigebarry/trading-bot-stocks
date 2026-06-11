@@ -76,32 +76,39 @@ def run_paper_day(cfg: Config) -> None:
         if not pd.isna(row["sma200"]):
             total += 1
             above += row["Close"] > row["sma200"]
-    breadth_ok = total > 0 and above / total >= cfg.min_market_breadth
-    if not breadth_ok:
-        print(f"  market breadth {above}/{total} below limit — no dip buying today")
+    breadth = above / total if total else 1.0
+    long_ok = breadth >= cfg.min_market_breadth
+    short_ok = cfg.allow_shorts and breadth <= 1 - cfg.min_market_breadth
+    print(f"  market breadth {above}/{total}: "
+          f"{'buying dips' if long_ok else 'shorting rips' if short_ok else 'standing aside'}")
 
     # --- entries: rank candidates, take the most confident ---
     candidates = []
-    if breadth_ok:
-        tstats = journal.ticker_win_rates()
-        for ticker, df in frames.items():
-            if ticker in portfolio.positions or len(df) < 2:
-                continue
-            row, prev = df.iloc[-1], df.iloc[-2]
-            setup = entry_signal(row, prev)
-            if setup is None:
-                continue
-            feats = feature_vector(row)
-            feats["ticker_winrate"] = ticker_winrate(tstats, ticker)
-            conf = brain.win_probability(feats)
-            if brain.model is not None and conf < cfg.confidence_threshold:
-                print(f"  skip {ticker} ({setup}): brain says only {conf:.0%} win chance")
-                continue
-            candidates.append((conf, ticker, setup, float(row["Close"]), feats))
-    for conf, ticker, setup, price, feats in sorted(candidates, key=lambda c: -c[0]):
-        pos = portfolio.open_position(ticker, setup, today, price, conf, feats, prices)
+    tstats = journal.ticker_win_rates()
+    for ticker, df in frames.items():
+        if ticker in portfolio.positions or len(df) < 2:
+            continue
+        row, prev = df.iloc[-1], df.iloc[-2]
+        sig = entry_signal(row, prev)
+        if sig is None:
+            continue
+        setup, side = sig
+        if (side == "long" and not long_ok) or (side == "short" and not short_ok):
+            continue
+        feats = feature_vector(row)
+        feats["ticker_winrate"] = ticker_winrate(tstats, ticker)
+        feats["is_short"] = 1.0 if side == "short" else 0.0
+        conf = brain.win_probability(feats)
+        if brain.model is not None and conf < cfg.confidence_threshold:
+            print(f"  skip {ticker} ({setup}): brain says only {conf:.0%} win chance")
+            continue
+        candidates.append((conf, ticker, setup, side, float(row["Close"]), feats))
+    for conf, ticker, setup, side, price, feats in sorted(candidates, key=lambda c: -c[0]):
+        pos = portfolio.open_position(ticker, setup, today, price, conf, feats,
+                                      prices, side)
         if pos:
-            print(f"  BUY  {ticker}: {setup} @ {pos.entry_price:.2f}, "
+            action = "BUY " if side == "long" else "SHRT"
+            print(f"  {action} {ticker}: {setup} @ {pos.entry_price:.2f}, "
                   f"{pos.shares:.0f} shares, confidence {conf:.0%}")
 
     # persist state
@@ -120,5 +127,7 @@ def run_paper_day(cfg: Config) -> None:
     for t, pos in portfolio.positions.items():
         cur = prices.get(t, pos.entry_price)
         upnl = (cur - pos.entry_price) * pos.shares
-        print(f"  {t:<10} {pos.shares:>5.0f} sh @ {pos.entry_price:.2f} "
+        if pos.side == "short":
+            upnl = -upnl
+        print(f"  {t:<10} {pos.side:<5} {pos.shares:>5.0f} sh @ {pos.entry_price:.2f} "
               f"-> {cur:.2f}  unrealized EUR {upnl:+.2f}")
