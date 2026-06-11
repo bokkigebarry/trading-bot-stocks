@@ -1,0 +1,9 @@
+# price-data cache is re-downloaded on every run
+bot_data/cache/
+# local-only artifacts
+bot_data/paper_log.txt
+bot_data/state_backup.json
+bot_data/journal_day.db
+__pycache__/
+*.pyc
+.claude/

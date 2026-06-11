@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Bot Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e;
+    --green: #3fb950; --red: #f85149; --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, "Segoe UI", sans-serif; padding: 24px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  h2 { font-size: 15px; color: var(--muted); margin: 28px 0 12px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: 8px; padding: 14px; }
+  .card .label { color: var(--muted); font-size: 12px; }
+  .card .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .chart-box { background: var(--card); border: 1px solid var(--border);
+               border-radius: 8px; padding: 16px; margin-top: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; background: var(--card);
+          border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px 12px; text-align: left; font-size: 13px; }
+  th { background: #1c2128; color: var(--muted); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--border); }
+  .badge { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .long { background: #1a3526; color: var(--green); }
+  .paper { background: #1c2f45; color: var(--accent); }
+  .backtest { background: #2d2436; color: #c297e8; }
+  canvas { max-height: 300px; }
+</style>
+</head>
+<body>
+<h1>🤖 Trading Bot — Paper Portfolio</h1>
+<div class="sub">Generated 2026-06-11 13:35 · fake money · long-only mean-reversion dip buyer</div>
+
+<div class="cards">
+  <div class="card"><div class="label">Equity</div>
+    <div class="value">€9,996.45</div></div>
+  <div class="card"><div class="label">Cash</div>
+    <div class="value">€6,902.45</div></div>
+  <div class="card"><div class="label">Realized P/L (paper)</div>
+    <div class="value pos">+€0.00</div></div>
+  <div class="card"><div class="label">Unrealized P/L</div>
+    <div class="value neg">-€1.55</div></div>
+  <div class="card"><div class="label">Win rate (paper)</div>
+    <div class="value">—</div></div>
+  <div class="card"><div class="label">Closed trades (paper)</div>
+    <div class="value">0</div></div>
+</div>
+
+<h2>Equity over time</h2>
+<div class="chart-box"><canvas id="equityChart"></canvas></div>
+
+<h2>Open positions</h2>
+<table><tr><th>Stock</th><th>Side</th><th>Shares</th><th>Entry</th><th>Last</th><th>Unrealized</th><th>Since</th><th>Days</th><th>Confidence</th></tr><tr><td><b>AMZN</b></td><td><span class='badge long'>LONG</span></td><td>13</td><td>238.12</td><td>238.00</td><td class='neg'>-€1.55</td><td>2026-06-11</td><td>0</td><td>61%</td></tr></table>
+
+<h2>Recent trades</h2>
+<table><tr><th>Closed</th><th>Stock</th><th>Side</th><th>Mode</th><th>Entry</th><th>Exit</th><th>P/L</th><th>Exit reason</th></tr><tr><td>2026-06-11</td><td><b>MT.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>58.77</td><td>57.18</td><td class='neg'>-€92.99</td><td>end_of_test</td></tr><tr><td>2026-06-09</td><td><b>AALB.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>38.54</td><td>38.30</td><td class='neg'>-€25.96</td><td>bounce_exit</td></tr><tr><td>2026-06-08</td><td><b>XOM</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>149.99</td><td>151.75</td><td class='pos'>+€31.26</td><td>bounce_exit</td></tr><tr><td>2026-06-04</td><td><b>KPN.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>4.62</td><td>4.33</td><td class='neg'>-€222.80</td><td>time_exit</td></tr><tr><td>2026-06-04</td><td><b>COST</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>1050.98</td><td>972.35</td><td class='neg'>-€241.33</td><td>bounce_exit</td></tr><tr><td>2026-06-02</td><td><b>BESI.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>278.34</td><td>286.20</td><td class='pos'>+€80.90</td><td>bounce_exit</td></tr><tr><td>2026-06-01</td><td><b>ASML.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>1377.09</td><td>1394.00</td><td class='pos'>+€28.43</td><td>bounce_exit</td></tr><tr><td>2026-05-26</td><td><b>GOOGL</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>387.62</td><td>388.65</td><td class='pos'>+€2.65</td><td>bounce_exit</td></tr><tr><td>2026-05-20</td><td><b>BESI.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>255.93</td><td>265.00</td><td class='pos'>+€103.28</td><td>bounce_exit</td></tr><tr><td>2026-05-20</td><td><b>INTC</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>120.35</td><td>118.96</td><td class='neg'>-€44.59</td><td>bounce_exit</td></tr><tr><td>2026-05-19</td><td><b>PEP</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>147.93</td><td>148.80</td><td class='pos'>+€13.64</td><td>bounce_exit</td></tr><tr><td>2026-05-18</td><td><b>BAC</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>51.07</td><td>50.43</td><td class='neg'>-€47.39</td><td>bounce_exit</td></tr><tr><td>2026-05-13</td><td><b>ASML.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>1266.43</td><td>1327.00</td><td class='pos'>+€115.81</td><td>bounce_exit</td></tr><tr><td>2026-05-12</td><td><b>IMCD.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>97.89</td><td>96.76</td><td class='neg'>-€44.03</td><td>bounce_exit</td></tr><tr><td>2026-05-11</td><td><b>KO</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>78.46</td><td>78.66</td><td class='pos'>+€2.78</td><td>bounce_exit</td></tr><tr><td>2026-05-07</td><td><b>PEP</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>153.06</td><td>154.66</td><td class='pos'>+€28.10</td><td>bounce_exit</td></tr><tr><td>2026-05-06</td><td><b>KO</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>78.23</td><td>79.23</td><td class='pos'>+€36.37</td><td>bounce_exit</td></tr><tr><td>2026-05-05</td><td><b>MT.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>52.22</td><td>49.44</td><td class='neg'>-€183.39</td><td>bounce_exit</td></tr><tr><td>2026-05-04</td><td><b>ASM.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>809.26</td><td>823.59</td><td class='pos'>+€51.71</td><td>bounce_exit</td></tr><tr><td>2026-04-30</td><td><b>AAPL</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>267.50</td><td>271.10</td><td class='pos'>+€37.61</td><td>bounce_exit</td></tr><tr><td>2026-04-28</td><td><b>INGA.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>23.86</td><td>24.01</td><td class='pos'>+€16.30</td><td>bounce_exit</td></tr><tr><td>2026-04-27</td><td><b>ASRNL.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>61.49</td><td>61.96</td><td class='pos'>+€19.85</td><td>bounce_exit</td></tr><tr><td>2026-04-24</td><td><b>PEP</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>153.38</td><td>153.82</td><td class='pos'>+€3.58</td><td>bounce_exit</td></tr><tr><td>2026-04-23</td><td><b>JNJ</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>233.32</td><td>229.33</td><td class='neg'>-€61.39</td><td>bounce_exit</td></tr><tr><td>2026-04-17</td><td><b>MT.AS</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>50.92</td><td>53.29</td><td class='pos'>+€148.17</td><td>bounce_exit</td></tr><tr><td>2026-04-17</td><td><b>KO</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>76.45</td><td>75.74</td><td class='neg'>-€36.08</td><td>bounce_exit</td></tr><tr><td>2026-04-16</td><td><b>PEP</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>154.18</td><td>156.73</td><td class='pos'>+€48.01</td><td>bounce_exit</td></tr><tr><td>2026-04-16</td><td><b>COST</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>997.52</td><td>985.78</td><td class='neg'>-€40.71</td><td>bounce_exit</td></tr><tr><td>2026-04-14</td><td><b>JNJ</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>237.21</td><td>238.73</td><td class='pos'>+€15.50</td><td>bounce_exit</td></tr><tr><td>2026-04-09</td><td><b>JNJ</b></td><td><span class='badge long'>LONG</span></td><td><span class='badge backtest'>backtest</span></td><td>237.17</td><td>239.93</td><td class='pos'>+€30.38</td><td>bounce_exit</td></tr></table>
+
+<div class="grid2">
+  <div>
+    <h2>P/L per stock (all journaled trades)</h2>
+    <div class="chart-box"><canvas id="tickerChart"></canvas></div>
+  </div>
+  <div>
+    <h2>Win rate trend (per 25 trades)</h2>
+    <div class="chart-box"><canvas id="learnChart"></canvas></div>
+  </div>
+</div>
+
+<script>
+const DATA = {"equity": {"labels": ["2026-06-11"], "values": [9996.45]}, "per_ticker": {"labels": ["META", "ORCL", "JPM", "HD", "NVDA", "XOM", "NN.AS", "WKL.AS", "RAND.AS", "ASML.AS", "CSCO", "AGN.AS", "TSLA", "HEIA.AS", "KO", "PG", "ABN.AS", "DIS", "MSFT", "UNA.AS", "V", "GOOGL", "NFLX", "IMCD.AS", "AAPL", "PHIA.AS", "BESI.AS", "KPN.AS", "ASM.AS", "JNJ", "MA", "AMZN", "AD.AS", "INTC", "WMT", "MT.AS", "AKZA.AS", "BAC", "AALB.AS", "AMD", "PEP", "ASRNL.AS", "COST", "INGA.AS", "ADYEN.AS"], "values": [929.74, 656.66, 411.09, 395.15, 351.06, 275.82, 248.22, 231.29, 226.26, 208.86, 207.14, 200.46, 199.31, 189.83, 176.7, 169.03, 112.01, 108.78, 93.17, 31.18, 21.57, 8.87, 6.17, -18.41, -49.91, -51.8, -65.92, -77.44, -143.16, -144.3, -159.85, -162.38, -171.6, -198.47, -235.5, -238.33, -246.93, -269.09, -350.98, -368.36, -369.09, -381.81, -411.28, -411.99, -1121.87]}, "learning": {"labels": ["25", "50", "75", "100", "125", "150", "175", "200", "225", "250", "275", "300", "325", "350", "375", "400", "425", "450", "475", "500", "525", "550", "575", "600", "625", "650", "675", "700", "725", "750"], "values": [64, 56, 72, 40, 68, 64, 68, 60, 80, 72, 64, 72, 48, 80, 52, 72, 80, 88, 64, 72, 72, 52, 72, 72, 68, 68, 60, 56, 60, 68]}};
+Chart.defaults.color = "#8b949e";
+Chart.defaults.borderColor = "#30363d";
+
+new Chart(document.getElementById("equityChart"), {
+  type: "line",
+  data: { labels: DATA.equity.labels, datasets: [{
+    label: "Equity (EUR)", data: DATA.equity.values, borderColor: "#58a6ff",
+    backgroundColor: "rgba(88,166,255,.12)", fill: true, tension: .25, pointRadius: 2 }]},
+  options: { plugins: { legend: { display: false } } }
+});
+
+new Chart(document.getElementById("tickerChart"), {
+  type: "bar",
+  data: { labels: DATA.per_ticker.labels, datasets: [{
+    data: DATA.per_ticker.values,
+    backgroundColor: DATA.per_ticker.values.map(v => v >= 0 ? "#3fb950" : "#f85149") }]},
+  options: { indexAxis: "y", plugins: { legend: { display: false } } }
+});
+
+new Chart(document.getElementById("learnChart"), {
+  type: "line",
+  data: { labels: DATA.learning.labels, datasets: [{
+    label: "win rate", data: DATA.learning.values, borderColor: "#c297e8",
+    tension: .25, pointRadius: 2 }]},
+  options: { scales: { y: { min: 0, max: 100,
+    ticks: { callback: v => v + "%" } } },
+    plugins: { legend: { display: false } } }
+});
+</script>
+</body>
+</html>
