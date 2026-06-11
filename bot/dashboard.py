@@ -17,55 +17,72 @@ PAGE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trading Bot Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root {
-    --bg: #0d1117; --card: #161b22; --border: #30363d;
-    --text: #e6edf3; --muted: #8b949e;
-    --green: #3fb950; --red: #f85149; --accent: #58a6ff;
+    --bg: #0d0d0d; --card: #1a1a1a; --border: #242424;
+    --text: #f0ece4; --muted: #9a9a9a;
+    --green: #10b981; --red: #ef4444; --accent: #c4a97d;
   }
   * { box-sizing: border-box; margin: 0; }
   body { background: var(--bg); color: var(--text);
-         font: 14px/1.5 -apple-system, "Segoe UI", sans-serif; padding: 24px; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  h2 { font-size: 15px; color: var(--muted); margin: 28px 0 12px; }
-  .sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+         font: 14px/1.5 "Inter", -apple-system, "Segoe UI", sans-serif;
+         padding: 32px 24px; max-width: 1180px; margin: 0 auto; }
+  .eyebrow { color: var(--accent); font-size: 11px; font-weight: 600;
+             text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+  h2 { font-size: 12px; color: var(--muted); margin: 34px 0 12px;
+       text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 26px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
            gap: 12px; }
   .card { background: var(--card); border: 1px solid var(--border);
-          border-radius: 8px; padding: 14px; }
-  .card .label { color: var(--muted); font-size: 12px; }
-  .card .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+          border-radius: 12px; padding: 16px; }
+  .card .label { color: var(--muted); font-size: 11px; font-weight: 600;
+                 text-transform: uppercase; letter-spacing: .1em; }
+  .card .value { font-size: 24px; font-weight: 800; margin-top: 6px;
+                 letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .pos { color: var(--green); } .neg { color: var(--red); }
   .chart-box { background: var(--card); border: 1px solid var(--border);
-               border-radius: 8px; padding: 16px; margin-top: 12px; }
+               border-radius: 12px; padding: 18px; margin-top: 12px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
   table { width: 100%; border-collapse: collapse; background: var(--card);
-          border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  th, td { padding: 8px 12px; text-align: left; font-size: 13px; }
-  th { background: #1c2128; color: var(--muted); font-weight: 500; }
+          border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; font-size: 13px; }
+  td { font-variant-numeric: tabular-nums; }
+  th { background: var(--bg); color: var(--muted); font-weight: 600;
+       font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
   tr + tr td { border-top: 1px solid var(--border); }
-  .badge { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .long { background: #1a3526; color: var(--green); }
-  .short { background: #3d1d23; color: var(--red); }
-  .paper { background: #1c2f45; color: var(--accent); }
-  .backtest { background: #2d2436; color: #c297e8; }
+  table tr:hover td { background: rgba(36,36,36,.5); }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 11px;
+           font-weight: 600; letter-spacing: .03em; }
+  .long { background: rgba(16,185,129,.1); color: var(--green);
+          border: 1px solid rgba(16,185,129,.3); }
+  .short { background: rgba(239,68,68,.1); color: var(--red);
+           border: 1px solid rgba(239,68,68,.3); }
+  .paper { background: rgba(196,169,125,.2); color: var(--accent);
+           border: 1px solid rgba(196,169,125,.3); }
+  .backtest { background: #242424; color: var(--muted); border: 1px solid #303030; }
   canvas { max-height: 300px; }
-  .pager { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
-  .pager button { background: var(--card); color: var(--text);
-                  border: 1px solid var(--border); border-radius: 6px;
-                  padding: 4px 10px; cursor: pointer; font-size: 13px; }
-  .pager button:hover:not(:disabled) { border-color: var(--accent); }
-  .pager button.cur { background: var(--accent); color: #0d1117;
-                      font-weight: 600; border-color: var(--accent); }
+  .pager { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .pager button { background: var(--card); color: var(--text); font-family: inherit;
+                  border: 1px solid var(--border); border-radius: 8px;
+                  padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  .pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pager button.cur { background: var(--accent); color: #0d0d0d;
+                      font-weight: 700; border-color: var(--accent); }
   .pager button:disabled { opacity: .4; cursor: default; }
   .pager .dots { color: var(--muted); padding: 4px 2px; }
 </style>
 </head>
 <body>
-<h1>🤖 Trading Bot — Paper Portfolio</h1>
-<div class="sub">Generated __GENERATED__ · fake money · long-only mean-reversion dip buyer</div>
+<div class="eyebrow">Self-Learning Trading Bot</div>
+<h1>Paper Portfolio</h1>
+<div class="sub">Updated __GENERATED__ · fake money · mean reversion, long &amp; short</div>
 
 <div class="cards">
   <div class="card"><div class="label">Equity</div>
@@ -105,14 +122,15 @@ __POSITIONS__
 
 <script>
 const DATA = __DATA__;
-Chart.defaults.color = "#8b949e";
-Chart.defaults.borderColor = "#30363d";
+Chart.defaults.color = "#9a9a9a";
+Chart.defaults.borderColor = "#242424";
+Chart.defaults.font.family = "'Inter', sans-serif";
 
 new Chart(document.getElementById("equityChart"), {
   type: "line",
   data: { labels: DATA.equity.labels, datasets: [{
-    label: "Equity (EUR)", data: DATA.equity.values, borderColor: "#58a6ff",
-    backgroundColor: "rgba(88,166,255,.12)", fill: true, tension: .25, pointRadius: 2 }]},
+    label: "Equity (EUR)", data: DATA.equity.values, borderColor: "#c4a97d",
+    backgroundColor: "rgba(196,169,125,.12)", fill: true, tension: .25, pointRadius: 2 }]},
   options: { plugins: { legend: { display: false } } }
 });
 
@@ -120,14 +138,14 @@ new Chart(document.getElementById("tickerChart"), {
   type: "bar",
   data: { labels: DATA.per_ticker.labels, datasets: [{
     data: DATA.per_ticker.values,
-    backgroundColor: DATA.per_ticker.values.map(v => v >= 0 ? "#3fb950" : "#f85149") }]},
+    backgroundColor: DATA.per_ticker.values.map(v => v >= 0 ? "#10b981" : "#ef4444") }]},
   options: { indexAxis: "y", plugins: { legend: { display: false } } }
 });
 
 new Chart(document.getElementById("learnChart"), {
   type: "line",
   data: { labels: DATA.learning.labels, datasets: [{
-    label: "win rate", data: DATA.learning.values, borderColor: "#c297e8",
+    label: "win rate", data: DATA.learning.values, borderColor: "#f0ece4",
     tension: .25, pointRadius: 2 }]},
   options: { scales: { y: { min: 0, max: 100,
     ticks: { callback: v => v + "%" } } },
