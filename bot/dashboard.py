@@ -274,7 +274,11 @@ def render_dashboard(cfg: Config) -> str:
             .replace("__POSITIONS__", positions_html)
             .replace("__DATA__", json.dumps(data)))
 
+    # bot_data copy for local viewing + docs/index.html for GitHub Pages
+    import os
+    os.makedirs("docs", exist_ok=True)
     out = "bot_data/dashboard.html"
-    with open(out, "w", encoding="utf-8") as f:
-        f.write(html)
+    for path in (out, "docs/index.html"):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
     return out
