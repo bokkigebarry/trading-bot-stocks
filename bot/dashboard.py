@@ -36,7 +36,11 @@ PAGE = """<!DOCTYPE html>
   h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
   h2 { font-size: 12px; color: var(--muted); margin: 34px 0 12px;
        text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
-  .sub { color: var(--muted); font-size: 12px; margin-bottom: 26px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .status { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 26px;
+            font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+         box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
            gap: 12px; }
   .card { background: var(--card); border: 1px solid var(--border);
@@ -77,12 +81,20 @@ PAGE = """<!DOCTYPE html>
                       font-weight: 700; border-color: var(--accent); }
   .pager button:disabled { opacity: .4; cursor: default; }
   .pager .dots { color: var(--muted); padding: 4px 2px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tab { background: var(--card); color: var(--muted); font-family: inherit;
+         border: 1px solid var(--border); border-radius: 999px;
+         padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.cur { background: var(--accent); color: #0d0d0d; border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; margin-bottom: 12px; max-width: 680px; }
 </style>
 </head>
 <body>
 <div class="eyebrow">Self-Learning Trading Bot</div>
 <h1>Paper Portfolio</h1>
 <div class="sub">Updated __GENERATED__ · fake money · mean reversion, long &amp; short</div>
+<div class="status"><span class="dot"></span> Bot active · last trading run __LASTRUN__</div>
 
 <div class="cards">
   <div class="card"><div class="label">Equity</div>
@@ -105,17 +117,23 @@ PAGE = """<!DOCTYPE html>
 <h2>Open positions</h2>
 __POSITIONS__
 
-<h2>All trades (<span id="tradeCount">0</span>)</h2>
+<h2>Trades</h2>
+<div class="tabs">
+  <button id="tab-paper" class="tab cur" onclick="setFilter('paper')">🟢 Live paper (<span id="cnt-paper">0</span>)</button>
+  <button id="tab-backtest" class="tab" onclick="setFilter('backtest')">Backtest training (<span id="cnt-backtest">0</span>)</button>
+  <button id="tab-all" class="tab" onclick="setFilter('all')">All (<span id="cnt-all">0</span>)</button>
+</div>
+<div class="hint" id="tradesHint"></div>
 <div id="tradesTable"><div class="card">No closed trades yet.</div></div>
 <div class="pager" id="pager"></div>
 
 <div class="grid2">
   <div>
-    <h2>P/L per stock (all journaled trades)</h2>
+    <h2>P/L per stock (live paper)</h2>
     <div class="chart-box"><canvas id="tickerChart"></canvas></div>
   </div>
   <div>
-    <h2>Win rate trend (per 25 trades)</h2>
+    <h2>Win rate trend (training + live, per 25 trades)</h2>
     <div class="chart-box"><canvas id="learnChart"></canvas></div>
   </div>
 </div>
@@ -152,20 +170,51 @@ new Chart(document.getElementById("learnChart"), {
     plugins: { legend: { display: false } } }
 });
 
-// --- all trades, paginated 25 per page ---
+// --- trades, filterable (live paper / backtest / all), 25 per page ---
 const PER_PAGE = 25;
 let page = 1;
 const money = v => (v >= 0 ? "+€" : "-€") +
   Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const HINTS = {
+  paper: "The bot's real live paper trades since going live — this is what it is actually doing now.",
+  backtest: "Historical simulation used to train the brain before going live. These are NOT live trades.",
+  all: "Everything in the journal: live paper trades plus the backtest training history.",
+};
+// default to live paper if any exist, so the live activity is what you see first
+let filter = DATA.trades.some(t => t.mode === "paper") ? "paper" : "all";
+
+function visibleTrades() {
+  return filter === "all" ? DATA.trades : DATA.trades.filter(t => t.mode === filter);
+}
+function setFilter(f) {
+  filter = f; page = 1;
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("cur"));
+  document.getElementById("tab-" + f).classList.add("cur");
+  renderTrades();
+}
+
 function renderTrades() {
-  const total = DATA.trades.length;
-  document.getElementById("tradeCount").textContent = total;
-  if (!total) return;
+  document.getElementById("cnt-paper").textContent =
+    DATA.trades.filter(t => t.mode === "paper").length;
+  document.getElementById("cnt-backtest").textContent =
+    DATA.trades.filter(t => t.mode === "backtest").length;
+  document.getElementById("cnt-all").textContent = DATA.trades.length;
+  document.getElementById("tradesHint").textContent = HINTS[filter];
+  document.getElementById("tab-" + filter).classList.add("cur");
+
+  const list = visibleTrades();
+  const total = list.length;
+  if (!total) {
+    document.getElementById("tradesTable").innerHTML =
+      "<div class='card'>No trades in this view yet.</div>";
+    document.getElementById("pager").innerHTML = "";
+    return;
+  }
   const pages = Math.ceil(total / PER_PAGE);
   page = Math.min(Math.max(1, page), pages);
 
-  const rows = DATA.trades.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(t =>
+  const rows = list.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(t =>
     `<tr><td>${t.date}</td><td><b>${t.ticker}</b></td>` +
     `<td><span class="badge ${t.side}">${t.side.toUpperCase()}</span></td>` +
     `<td><span class="badge ${t.mode}">${t.mode}</span></td>` +
@@ -259,8 +308,10 @@ def render_dashboard(cfg: Config) -> str:
     eq_labels = [h["date"] for h in history] or [datetime.now().strftime("%Y-%m-%d")]
     eq_values = [round(h["equity"], 2) for h in history] or [round(equity, 2)]
 
+    # per-stock P/L from LIVE paper trades (what the bot actually earned),
+    # falling back to the full journal until live trades exist
     per_ticker: dict[str, float] = {}
-    for t in all_trades:
+    for t in (paper_trades or all_trades):
         per_ticker[t["ticker"]] = per_ticker.get(t["ticker"], 0.0) + t["pnl"]
     ranked = sorted(per_ticker.items(), key=lambda kv: kv[1], reverse=True)
 
@@ -279,8 +330,11 @@ def render_dashboard(cfg: Config) -> str:
         "trades": trades_data,
     }
 
+    last_run = journal.load_state("last_paper_run") or "—"
+
     html = (PAGE
             .replace("__GENERATED__", datetime.now().strftime("%Y-%m-%d %H:%M"))
+            .replace("__LASTRUN__", last_run)
             .replace("__EQUITY__", f"{equity:,.2f}")
             .replace("__CASH__", f"{cash:,.2f}")
             .replace("__REALIZED__", _money(realized))
