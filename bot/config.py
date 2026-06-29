@@ -25,7 +25,7 @@ class Config:
     universe: list[str] = field(default_factory=lambda: list(DEFAULT_UNIVERSE))
 
     # Paper portfolio
-    starting_cash: float = 10_000.0          # EUR of fake money
+    starting_cash: float = 1_000.0           # EUR of fake money (small-account reality)
     max_positions: int = 3                   # fewer, bigger slices: fixed fees weigh less
 
     # Interactive Brokers-like costs (EUR). Flat fee per order + slippage.
